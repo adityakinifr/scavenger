@@ -1,0 +1,12 @@
+# Copy this file to .env and fill in your actual Twilio credentials
+# Get these values from your Twilio Console: https://console.twilio.com/
+
+# Twilio Account Configuration
+TWILIO_ACCOUNT_SID=your_account_sid_here
+TWILIO_AUTH_TOKEN=your_auth_token_here
+TWILIO_PHONE_NUMBER=your_twilio_phone_number_here
+
+# Flask Configuration
+FLASK_ENV=development
+FLASK_DEBUG=True
+SECRET_KEY=your-secret-key-for-production 

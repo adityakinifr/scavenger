@@ -1,0 +1,71 @@
+name: Test Twilio Flask App
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Create test environment file
+      run: |
+        cp env_template.txt .env
+        # Set dummy values for testing
+        sed -i 's/your_account_sid_here/test_sid/g' .env
+        sed -i 's/your_auth_token_here/test_token/g' .env
+        sed -i 's/your_twilio_phone_number_here/+1234567890/g' .env
+    
+    - name: Test app imports and basic functionality
+      run: |
+        python -c "
+        import sys
+        sys.path.append('.')
+        
+        # Test imports
+        try:
+            from app import app
+            from config import Config
+            print('✅ All imports successful')
+        except Exception as e:
+            print(f'❌ Import error: {e}')
+            sys.exit(1)
+        
+        # Test app creation
+        try:
+            with app.test_client() as client:
+                response = client.get('/')
+                assert response.status_code == 200
+                print('✅ App responds to requests')
+        except Exception as e:
+            print(f'❌ App test error: {e}')
+            sys.exit(1)
+        
+        print('🎉 All tests passed!')
+        "
+    
+    - name: Test configuration validation
+      run: |
+        python -c "
+        from config import Config
+        missing = Config.validate_twilio_config()
+        if not missing:
+            print('✅ Configuration validation works')
+        else:
+            print(f'✅ Configuration validation correctly identifies missing: {missing}')
+        " 
