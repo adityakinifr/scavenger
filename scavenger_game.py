@@ -14,17 +14,50 @@ class ScavengerHuntGame:
         # Initialize OpenAI client only if API key is available
         api_key = os.environ.get('OPENAI_API_KEY')
         if api_key and not api_key.startswith('your_'):
+            self.has_openai = False
+            self.openai_client = None
+            
+            # Try multiple initialization approaches
             try:
-                # Try different initialization methods for compatibility
-                try:
-                    self.openai_client = openai.OpenAI(api_key=api_key)
-                except TypeError:
-                    # Fallback for older versions or different initialization
-                    openai.api_key = api_key
-                    self.openai_client = openai
+                # Method 1: Try basic initialization without any extra arguments
+                self.openai_client = openai.OpenAI(api_key=api_key)
                 self.has_openai = True
+                print("✅ OpenAI client initialized successfully (method 1)")
+            except TypeError as e:
+                if 'proxies' in str(e):
+                    try:
+                        # Method 2: Try with explicit empty proxies
+                        import openai as openai_module
+                        self.openai_client = openai_module.OpenAI(
+                            api_key=api_key,
+                            http_client=None
+                        )
+                        self.has_openai = True
+                        print("✅ OpenAI client initialized successfully (method 2)")
+                    except Exception:
+                        try:
+                            # Method 3: Use legacy style initialization
+                            openai.api_key = api_key
+                            self.openai_client = openai
+                            self.has_openai = True
+                            print("✅ OpenAI client initialized successfully (method 3 - legacy)")
+                        except Exception as e3:
+                            print(f"⚠️  OpenAI initialization failed, using fallback: {e3}")
+                            self.openai_client = None
+                            self.has_openai = False
+                else:
+                    try:
+                        # Method 4: Legacy fallback
+                        openai.api_key = api_key
+                        self.openai_client = openai
+                        self.has_openai = True
+                        print("✅ OpenAI client initialized successfully (method 4 - legacy)")
+                    except Exception as e4:
+                        print(f"⚠️  OpenAI initialization failed, using fallback: {e4}")
+                        self.openai_client = None
+                        self.has_openai = False
             except Exception as e:
-                print(f"Warning: OpenAI initialization failed: {e}")
+                print(f"⚠️  OpenAI initialization failed, using fallback: {e}")
                 self.openai_client = None
                 self.has_openai = False
         else:
@@ -207,41 +240,28 @@ The user's answer should be considered correct if it:
 Respond with only "CORRECT" or "INCORRECT".
 """
             
-            # Try new client style first, then fall back to legacy
-            try:
-                if hasattr(self.openai_client, 'chat') and hasattr(self.openai_client.chat, 'completions'):
-                    # New client style (OpenAI v1.0+)
-                    response = self.openai_client.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": prompt}],
-                        max_tokens=10,
-                        temperature=0
-                    )
-                    result = response.choices[0].message.content.strip().upper()
-                else:
-                    # Legacy style (OpenAI v0.x)
-                    response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": prompt}],
-                        max_tokens=10,
-                        temperature=0
-                    )
-                    result = response.choices[0].message.content.strip().upper()
-            except AttributeError:
-                # Another fallback attempt
-                response = openai.ChatCompletion.create(
+            # Use only the legacy API style to avoid proxies issues
+            import openai as openai_module
+            
+            # Ensure we're using the legacy API
+            if hasattr(openai_module, 'ChatCompletion'):
+                response = openai_module.ChatCompletion.create(
                     model="gpt-3.5-turbo",
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=10,
                     temperature=0
                 )
                 result = response.choices[0].message.content.strip().upper()
-            
-            return result == "CORRECT"
+                return result == "CORRECT"
+            else:
+                # If legacy API not available, fall back to string matching
+                print("Legacy OpenAI API not available, using string matching")
+                user_lower = user_answer.lower()
+                return any(expected.lower() in user_lower for expected in expected_answers)
             
         except Exception as e:
-            print(f"OpenAI error: {e}")
-            # Fallback to simple matching
+            # Any error with OpenAI -> fall back to string matching
+            print(f"OpenAI unavailable, using string matching: {type(e).__name__}")
             user_lower = user_answer.lower()
             return any(expected.lower() in user_lower for expected in expected_answers)
     
