@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 import logging
 from config import Config
+from scavenger_game import game
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,22 +30,38 @@ call_history = []
 
 @app.route('/')
 def home():
-    """Home page with basic information about the app."""
+    """Home page with information about the Portland Scavenger Hunt."""
     return jsonify({
-        "message": "Twilio Flask App",
-        "description": "A Flask app that integrates with Twilio to handle SMS and voice calls",
+        "message": "Portland Scavenger Hunt Bot 🎯",
+        "description": "A Twilio-powered scavenger hunt game exploring Portland's iconic locations",
+        "game_info": {
+            "locations": 5,
+            "max_points_per_clue": 40,
+            "total_possible_points": 200,
+            "features": [
+                "OpenAI-powered natural language processing",
+                "Progressive hint system",
+                "Score tracking by phone number",
+                "Portland-specific locations and clues"
+            ]
+        },
+        "how_to_play": {
+            "start": "Text 'READY' to your Twilio number",
+            "answer": "Respond with location names in natural language",
+            "hints": "Get up to 3 hints per clue",
+            "scoring": "40 pts (no hints), 30 pts (1 hint), 20 pts (2 hints), 10 pts (3 hints)"
+        },
         "endpoints": {
             "sms_webhook": "/webhook/sms",
             "voice_webhook": "/webhook/voice",
-            "send_sms": "/send-sms",
-            "get_messages": "/messages",
-            "get_calls": "/calls"
+            "game_stats": "/game-stats",
+            "leaderboard": "/leaderboard"
         }
     })
 
 @app.route('/webhook/sms', methods=['POST'])
 def sms_webhook():
-    """Handle incoming SMS messages from Twilio."""
+    """Handle incoming SMS messages for the scavenger hunt game."""
     try:
         # Get message data from Twilio
         from_number = request.form.get('From')
@@ -66,25 +83,36 @@ def sms_webhook():
         }
         message_history.append(message_data)
         
-        # Create response based on message content
+        # Process the message through the scavenger hunt game
         response = MessagingResponse()
-        reply_message = generate_sms_response(message_body, from_number)
+        reply_message = process_scavenger_hunt_message(message_body, from_number)
         response.message(reply_message)
         
         # Log the response
-        logger.info(f"Responding to {from_number}: {reply_message}")
+        logger.info(f"Responding to {from_number}: {reply_message[:100]}...")
+        
+        # Store response in history
+        response_data = {
+            "sid": f"response_{message_sid}",
+            "from": to_number,
+            "to": from_number,
+            "body": reply_message,
+            "timestamp": datetime.now().isoformat(),
+            "direction": "outbound"
+        }
+        message_history.append(response_data)
         
         return str(response)
     
     except Exception as e:
         logger.error(f"Error processing SMS webhook: {str(e)}")
         response = MessagingResponse()
-        response.message("Sorry, I encountered an error processing your message.")
+        response.message("Sorry, I encountered an error. Please try texting 'READY' to start the Portland Scavenger Hunt! 🎯")
         return str(response)
 
 @app.route('/webhook/voice', methods=['POST'])
 def voice_webhook():
-    """Handle incoming voice calls from Twilio."""
+    """Handle incoming voice calls with scavenger hunt information."""
     try:
         # Get call data from Twilio
         from_number = request.form.get('From')
@@ -106,24 +134,17 @@ def voice_webhook():
         }
         call_history.append(call_data)
         
-        # Create voice response
+        # Create voice response about the scavenger hunt
         response = VoiceResponse()
         
-        # Generate voice response based on caller
-        voice_message = generate_voice_response(from_number)
+        voice_message = f"""Hello! You've reached the Portland Scavenger Hunt hotline. 
+        This is a text-based game where you explore Portland's iconic locations. 
+        To play, send a text message with the word READY to this number. 
+        You'll receive clues about 5 amazing Portland locations and earn points for correct answers. 
+        The game uses artificial intelligence to understand your responses in natural language. 
+        Have fun exploring Portland!"""
+        
         response.say(voice_message, voice='alice')
-        
-        # Optionally gather input
-        gather = response.gather(
-            input='speech dtmf',
-            timeout=10,
-            action='/webhook/voice/gather',
-            method='POST'
-        )
-        gather.say("Press any key or say something after the beep.", voice='alice')
-        
-        # Fallback if no input
-        response.say("Thank you for calling. Goodbye!", voice='alice')
         response.hangup()
         
         return str(response)
@@ -131,44 +152,116 @@ def voice_webhook():
     except Exception as e:
         logger.error(f"Error processing voice webhook: {str(e)}")
         response = VoiceResponse()
-        response.say("Sorry, I encountered an error. Please try again later.", voice='alice')
+        response.say("Sorry, I encountered an error. Please send a text message with READY to play the Portland Scavenger Hunt.", voice='alice')
         response.hangup()
         return str(response)
 
-@app.route('/webhook/voice/gather', methods=['POST'])
-def voice_gather():
-    """Handle gathered input from voice calls."""
-    try:
-        speech_result = request.form.get('SpeechResult', '')
-        digits = request.form.get('Digits', '')
-        from_number = request.form.get('From')
-        
-        logger.info(f"Gathered from {from_number} - Speech: {speech_result}, Digits: {digits}")
-        
-        response = VoiceResponse()
-        
-        if speech_result:
-            reply = f"You said: {speech_result}. Thank you for your input!"
-        elif digits:
-            reply = f"You pressed: {digits}. Thank you!"
-        else:
-            reply = "I didn't catch that. Thank you for calling!"
-        
-        response.say(reply, voice='alice')
-        response.hangup()
-        
-        return str(response)
+def process_scavenger_hunt_message(message_body, from_number):
+    """Process incoming message through the scavenger hunt game logic."""
+    message_lower = message_body.lower().strip()
     
-    except Exception as e:
-        logger.error(f"Error processing voice gather: {str(e)}")
-        response = VoiceResponse()
-        response.say("Thank you for calling. Goodbye!", voice='alice')
-        response.hangup()
-        return str(response)
+    # Handle game commands
+    if message_lower in ['ready', 'start', 'begin', 'play']:
+        return game.start_game(from_number)
+    
+    elif message_lower in ['status', 'score', 'progress']:
+        return game.get_status(from_number)
+    
+    elif message_lower in ['help', 'info', 'instructions']:
+        return """🎯 Portland Scavenger Hunt Help
+
+How to play:
+• Send 'READY' to start the game
+• Answer clues about Portland locations
+• Use natural language - I understand various ways to say the same thing!
+• Get hints if you're stuck (but they reduce your points)
+
+Scoring:
+• First try: 40 points
+• With 1 hint: 30 points
+• With 2 hints: 20 points  
+• With 3 hints: 10 points
+
+Commands:
+• READY - Start/restart game
+• STATUS - Check your progress
+• HELP - Show this message
+
+Ready to explore Portland? Send 'READY'! 🌲"""
+    
+    elif message_lower in ['quit', 'stop', 'exit']:
+        # Reset player's game
+        if from_number in game.players:
+            del game.players[from_number]
+        return "👋 Thanks for playing the Portland Scavenger Hunt! Send 'READY' anytime to play again! 🌲"
+    
+    else:
+        # Process as a game answer
+        return game.process_answer(from_number, message_body)
+
+@app.route('/game-stats', methods=['GET'])
+def get_game_stats():
+    """Get overall game statistics."""
+    total_players = len(game.players)
+    active_players = sum(1 for p in game.players.values() if p["game_started"])
+    completed_games = sum(1 for p in game.players.values() if len(p["completed_clues"]) == 5)
+    
+    # Calculate average score for completed games
+    completed_scores = [p["total_score"] for p in game.players.values() if len(p["completed_clues"]) == 5]
+    avg_score = sum(completed_scores) / len(completed_scores) if completed_scores else 0
+    
+    return jsonify({
+        "total_players": total_players,
+        "active_players": active_players,
+        "completed_games": completed_games,
+        "average_score": round(avg_score, 1),
+        "game_info": {
+            "total_clues": len(game.clues),
+            "max_possible_score": 200,
+            "locations": [clue["location"] for clue in game.clues]
+        }
+    })
+
+@app.route('/leaderboard', methods=['GET'])
+def get_leaderboard():
+    """Get leaderboard of top scores."""
+    # Get all completed games with scores
+    completed_players = []
+    for phone, player_data in game.players.items():
+        if len(player_data["completed_clues"]) == 5:
+            completed_players.append({
+                "phone": phone[-4:],  # Only show last 4 digits for privacy
+                "score": player_data["total_score"],
+                "completion_time": player_data.get("start_time", "Unknown")
+            })
+    
+    # Sort by score (descending)
+    leaderboard = sorted(completed_players, key=lambda x: x["score"], reverse=True)[:10]
+    
+    return jsonify({
+        "leaderboard": leaderboard,
+        "total_completed_games": len(completed_players)
+    })
+
+@app.route('/messages', methods=['GET'])
+def get_messages():
+    """Get message history."""
+    return jsonify({
+        "messages": message_history,
+        "count": len(message_history)
+    })
+
+@app.route('/calls', methods=['GET'])
+def get_calls():
+    """Get call history."""
+    return jsonify({
+        "calls": call_history,
+        "count": len(call_history)
+    })
 
 @app.route('/send-sms', methods=['POST'])
 def send_sms():
-    """Send an SMS message via Twilio."""
+    """Send an SMS message via Twilio (for admin use)."""
     try:
         if not twilio_client:
             return jsonify({"error": "Twilio client not configured"}), 500
@@ -187,17 +280,6 @@ def send_sms():
             to=to_number
         )
         
-        # Store in history
-        message_data = {
-            "sid": message.sid,
-            "from": Config.TWILIO_PHONE_NUMBER,
-            "to": to_number,
-            "body": message_body,
-            "timestamp": datetime.now().isoformat(),
-            "direction": "outbound"
-        }
-        message_history.append(message_data)
-        
         logger.info(f"Sent SMS to {to_number}: {message_body}")
         
         return jsonify({
@@ -210,22 +292,6 @@ def send_sms():
         logger.error(f"Error sending SMS: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/messages', methods=['GET'])
-def get_messages():
-    """Get message history."""
-    return jsonify({
-        "messages": message_history,
-        "count": len(message_history)
-    })
-
-@app.route('/calls', methods=['GET'])
-def get_calls():
-    """Get call history."""
-    return jsonify({
-        "calls": call_history,
-        "count": len(call_history)
-    })
-
 @app.route('/twilio-data', methods=['GET'])
 def get_twilio_data():
     """Fetch recent data from Twilio account."""
@@ -234,7 +300,7 @@ def get_twilio_data():
             return jsonify({"error": "Twilio client not configured"}), 500
         
         # Fetch recent messages
-        recent_messages = twilio_client.messages.list(limit=10)
+        recent_messages = twilio_client.messages.list(limit=20)
         messages_data = []
         for msg in recent_messages:
             messages_data.append({
@@ -270,34 +336,6 @@ def get_twilio_data():
     except Exception as e:
         logger.error(f"Error fetching Twilio data: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
-def generate_sms_response(message_body, from_number):
-    """Generate an appropriate SMS response based on the incoming message."""
-    message_lower = message_body.lower().strip()
-    
-    # Simple keyword-based responses
-    if any(word in message_lower for word in ['hello', 'hi', 'hey']):
-        return f"Hello! Thanks for messaging us. How can I help you today?"
-    
-    elif any(word in message_lower for word in ['help', 'support']):
-        return "I'm here to help! You can ask me about our services or send 'info' for more details."
-    
-    elif 'info' in message_lower:
-        return "This is a Twilio-powered Flask app. It can handle SMS and voice calls. Send 'help' for assistance."
-    
-    elif any(word in message_lower for word in ['bye', 'goodbye', 'thanks']):
-        return "Thank you for contacting us! Have a great day!"
-    
-    elif message_lower.isdigit():
-        number = int(message_lower)
-        return f"I received the number {number}. That's {'even' if number % 2 == 0 else 'odd'}!"
-    
-    else:
-        return f"Thanks for your message: '{message_body}'. I'm a simple bot, but I'm learning! Send 'help' for more options."
-
-def generate_voice_response(from_number):
-    """Generate an appropriate voice response based on the caller."""
-    return f"Hello! Thank you for calling our Twilio-powered Flask application. Your number is {from_number}."
 
 if __name__ == '__main__':
     # Get port from environment (Codespaces sets this)

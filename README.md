@@ -1,252 +1,198 @@
-# Twilio Flask App
+# Portland Scavenger Hunt Bot 🎯
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/yourusername/yourrepo)
+A Twilio-powered SMS scavenger hunt game that takes players on an adventure through Portland's most iconic locations! Using OpenAI's natural language processing, the bot understands responses in natural language and provides an engaging, interactive experience.
 
-A Flask application that integrates with Twilio to handle SMS messages and voice calls. The app can receive webhooks from Twilio, process incoming messages/calls, and respond intelligently based on the content received.
+## 🌲 Game Features
 
-## 🚀 Quick Start with GitHub Codespaces
+- **5 Portland Locations**: Explore iconic spots like the International Rose Test Garden, Powell's Books, Voodoo Doughnut, Pioneer Courthouse Square, and Tom McCall Waterfront Park
+- **Smart AI Processing**: OpenAI-powered natural language understanding accepts various ways of saying the same answer
+- **Progressive Hint System**: Get up to 3 hints per clue, but each hint reduces your points
+- **Dynamic Scoring**: 40 points (no hints), 30 points (1 hint), 20 points (2 hints), 10 points (3 hints)
+- **Player Tracking**: Individual score tracking by phone number
+- **Game Statistics**: View leaderboards and game stats via API endpoints
 
-Click the badge above or the "Code" → "Create codespace" button to get started instantly! No local setup required.
+## 🎮 How to Play
 
-## Features
+1. **Start**: Text `READY` to the Twilio phone number
+2. **Answer**: Respond to clues about Portland locations in natural language
+3. **Get Hints**: If stuck, the bot will provide helpful hints (but reduce your score)
+4. **Complete**: Visit all 5 locations to complete the scavenger hunt!
 
-- **SMS Webhook Handler**: Receives and processes incoming SMS messages
-- **Voice Webhook Handler**: Handles incoming voice calls with interactive responses
-- **Message History**: Stores and retrieves message history
-- **Call History**: Tracks incoming and outgoing calls
-- **Outbound SMS**: Send SMS messages programmatically
-- **Twilio Data Fetching**: Retrieve recent messages and calls from your Twilio account
-- **Intelligent Responses**: Context-aware responses based on message content
+### Game Commands
+- `READY` - Start or restart the game
+- `STATUS` - Check your current progress and score
+- `HELP` - Get game instructions
+- `QUIT` - Exit the current game
 
-## Prerequisites
-
-- Python 3.7+
-- A Twilio account with:
-  - Account SID
-  - Auth Token
-  - A Twilio phone number
-- ngrok (for local development with webhooks)
-
-## Setup Instructions
+## 🚀 Quick Setup Options
 
 ### Option 1: GitHub Codespaces (Recommended)
-
-The easiest way to get started is using GitHub Codespaces:
-
-1. **Open in Codespaces**: Click the "Code" button on GitHub and select "Create codespace on main"
-2. **Wait for setup**: Codespaces will automatically install dependencies
-3. **Start the app**: Run `python start_codespaces.py` (optimized for Codespaces)
-4. **Access your app**: Use the Ports tab in VS Code to open your app in a browser
-5. **Add Twilio credentials**: Edit the `.env` file with your Twilio Account SID, Auth Token, and Phone Number
+1. Click the "Code" button and select "Create codespace on main"
+2. Wait for the environment to set up automatically
+3. Copy `env_template.txt` to `.env` and add your API keys
+4. Run the startup script: `python start_codespaces.py`
 
 ### Option 2: Local Development
+1. Clone this repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Set up environment variables (see Configuration section)
+4. Run: `python app.py`
 
-#### 1. Clone and Install Dependencies
+## 🔧 Configuration
+
+### Required Environment Variables
+
+Create a `.env` file with the following variables:
 
 ```bash
-# Install Python dependencies
-pip install -r requirements.txt
-```
-
-#### 2. Configure Twilio Credentials
-
-Create a `.env` file in the project root with your Twilio credentials:
-
-```bash
-# Twilio Account Configuration
-TWILIO_ACCOUNT_SID=your_account_sid_here
-TWILIO_AUTH_TOKEN=your_auth_token_here
+# Twilio Configuration (get from https://console.twilio.com/)
+TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
 TWILIO_PHONE_NUMBER=your_twilio_phone_number_here
+
+# OpenAI Configuration (get from https://platform.openai.com/)
+OPENAI_API_KEY=your_openai_api_key_here
 
 # Flask Configuration
 FLASK_ENV=development
-FLASK_DEBUG=True
+SECRET_KEY=your_secret_key_here
 ```
 
-**To get your Twilio credentials:**
+### Getting API Keys
+
+#### Twilio Setup
 1. Sign up at [Twilio Console](https://console.twilio.com/)
-2. Find your Account SID and Auth Token on the dashboard
-3. Purchase a phone number from the Phone Numbers section
+2. Get a phone number with SMS capabilities
+3. Copy your Account SID and Auth Token
+4. Set up webhook URLs (see Webhook Configuration)
 
-#### 3. Run the Application
+#### OpenAI Setup
+1. Sign up at [OpenAI Platform](https://platform.openai.com/)
+2. Create an API key in your account settings
+3. Add credits to your account for API usage
 
-```bash
-python app.py
-```
+### Webhook Configuration
 
-The app will start on `http://localhost:5000`
+Configure your Twilio phone number webhooks:
+- **SMS Webhook URL**: `https://your-domain.com/webhook/sms`
+- **Voice Webhook URL**: `https://your-domain.com/webhook/voice`
 
-#### 4. Set Up Webhooks (for receiving messages/calls)
+For Codespaces, your domain will be: `https://your-codespace-name-5000.app.github.dev`
 
-**For GitHub Codespaces:**
-1. Start your app with `python start_codespaces.py`
-2. Use the Ports tab in VS Code to get your public URL
-3. Configure webhooks in Twilio Console with your Codespaces URL
+## 📊 API Endpoints
 
-**For local development:**
-Use ngrok to expose your local server:
+### Game Endpoints
+- `GET /` - Game information and instructions
+- `GET /game-stats` - Overall game statistics
+- `GET /leaderboard` - Top 10 player scores
+- `POST /webhook/sms` - SMS webhook (configured in Twilio)
+- `POST /webhook/voice` - Voice webhook (configured in Twilio)
 
-```bash
-# Install ngrok if you haven't already
-# Then expose your local Flask app
-ngrok http 5000
-```
+### Admin Endpoints
+- `GET /messages` - Message history
+- `GET /calls` - Call history
+- `POST /send-sms` - Send SMS (admin use)
+- `GET /twilio-data` - Fetch recent Twilio data
 
-Copy the ngrok URL (e.g., `https://abc123.ngrok.io`) and configure your Twilio phone number webhooks:
-
-1. Go to [Twilio Console > Phone Numbers](https://console.twilio.com/us1/develop/phone-numbers/manage/incoming)
-2. Click on your phone number
-3. Set the webhook URLs:
-   - **SMS Webhook**: `https://your-url/webhook/sms`
-   - **Voice Webhook**: `https://your-url/webhook/voice`
-
-## API Endpoints
-
-### Core Endpoints
-
-- `GET /` - Home page with API information
-- `POST /webhook/sms` - Twilio SMS webhook endpoint
-- `POST /webhook/voice` - Twilio voice webhook endpoint
-- `POST /webhook/voice/gather` - Handle voice input gathering
-
-### Data Endpoints
-
-- `GET /messages` - Get local message history
-- `GET /calls` - Get local call history
-- `GET /twilio-data` - Fetch recent data from Twilio account
-
-### Action Endpoints
-
-- `POST /send-sms` - Send an SMS message
-
-## Usage Examples
-
-### Send an SMS
-
-```bash
-curl -X POST http://localhost:5000/send-sms \
-  -H "Content-Type: application/json" \
-  -d '{
-    "to": "+1234567890",
-    "message": "Hello from Flask!"
-  }'
-```
-
-### Get Message History
-
-```bash
-curl http://localhost:5000/messages
-```
-
-### Get Twilio Account Data
-
-```bash
-curl http://localhost:5000/twilio-data
-```
-
-## SMS Response Logic
-
-The app responds intelligently to incoming SMS messages:
-
-- **Greetings** (`hello`, `hi`, `hey`) → Welcome message
-- **Help requests** (`help`, `support`) → Assistance information
-- **Info requests** (`info`) → App information
-- **Numbers** → Tells you if the number is even or odd
-- **Farewells** (`bye`, `goodbye`, `thanks`) → Polite goodbye
-- **Default** → Acknowledges the message and offers help
-
-## Voice Call Features
-
-When someone calls your Twilio number:
-
-1. **Greeting**: Personalized welcome message with caller's number
-2. **Input Gathering**: Prompts for speech or DTMF input
-3. **Response**: Repeats back what was said or pressed
-4. **Graceful Hangup**: Ends the call politely
-
-## Project Structure
+## 🏗️ Project Structure
 
 ```
 scavenger/
-├── .devcontainer/
-│   └── devcontainer.json    # GitHub Codespaces configuration
-├── app.py                   # Main Flask application
-├── config.py                # Configuration management
-├── requirements.txt         # Python dependencies
-├── start_codespaces.py      # Codespaces-optimized startup script
-├── run.py                   # Local startup script
-├── test_app.py              # Setup verification script
-├── webhook_validator.py     # Production security utilities
-├── env_template.txt         # Environment variables template
-└── README.md               # This file
+├── app.py                 # Main Flask application
+├── scavenger_game.py      # Game logic and OpenAI integration
+├── config.py              # Configuration management
+├── requirements.txt       # Python dependencies
+├── .env                   # Environment variables (create from template)
+├── env_template.txt       # Environment template
+├── README.md              # This file
+├── start_codespaces.py    # Codespaces startup script
+├── test_app.py           # Test script
+├── run.py                # Local startup script
+└── .devcontainer/        # Codespaces configuration
+    └── devcontainer.json
 ```
 
-## Development
+## 🎯 Game Locations
 
-### GitHub Codespaces Development
+The scavenger hunt features these iconic Portland locations:
 
-GitHub Codespaces provides the best development experience:
+1. **International Rose Test Garden** - Washington Park's famous rose garden
+2. **Powell's City of Books** - The world's largest independent bookstore
+3. **Voodoo Doughnut** - Iconic donut shop with unique flavors
+4. **Pioneer Courthouse Square** - Portland's "living room"
+5. **Tom McCall Waterfront Park** - Scenic riverside park and Saturday Market
 
-- **Automatic setup**: Dependencies are installed automatically
-- **Port forwarding**: Your app is accessible via a public URL
-- **VS Code integration**: Full IDE experience in the browser
-- **No local setup required**: Everything runs in the cloud
+## 🧪 Testing
 
-To start developing:
-1. Open the repository in GitHub Codespaces
-2. Run `python start_codespaces.py`
-3. Use the Ports tab to access your app
-
-### Local Development Mode
-
+### Test the Setup
 ```bash
-export FLASK_ENV=development
-export FLASK_DEBUG=True
+python test_app.py
+```
+
+### Test Game Logic
+```bash
+# Start the app
 python app.py
+
+# In another terminal, test the game endpoints
+curl http://localhost:5000/
+curl http://localhost:5000/game-stats
 ```
 
-### Production Deployment
+### Test SMS Functionality
+Send a text message with "READY" to your Twilio number to start the game!
 
-For production, use a WSGI server like Gunicorn:
-
-```bash
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
-```
-
-## Security Notes
-
-- Never commit your `.env` file with real credentials
-- Use environment variables for all sensitive configuration
-- Consider implementing webhook signature validation for production
-- Use HTTPS in production environments
-
-## Troubleshooting
+## 🔍 Troubleshooting
 
 ### Common Issues
 
-1. **"Twilio client not configured"**
-   - Check that your `.env` file exists and has the correct credentials
-   - Verify your Twilio Account SID and Auth Token are correct
+1. **Import Errors**: Make sure all dependencies are installed: `pip install -r requirements.txt`
 
-2. **Webhooks not receiving data**
-   - Ensure ngrok is running and the URL is correct
-   - Check that webhook URLs in Twilio Console match your ngrok URL
-   - Verify your Flask app is running and accessible
+2. **Twilio 401 Errors**: 
+   - Check your webhook URLs are correct
+   - Ensure your Codespace port is public (not private)
+   - Verify your Twilio credentials
 
-3. **SMS sending fails**
-   - Confirm your Twilio phone number is correct
-   - Check that the destination number is in a supported format (+1234567890)
-   - Verify your Twilio account has sufficient balance
+3. **OpenAI Errors**:
+   - Verify your API key is correct
+   - Check you have credits in your OpenAI account
+   - The game will fall back to simple string matching if OpenAI fails
 
-## Next Steps
+4. **Port Issues in Codespaces**:
+   - Make sure port 5000 is set to "Public" in the Ports tab
+   - Use the correct Codespace URL format
 
-- Add database storage for persistent message/call history
-- Implement user authentication and authorization
-- Add more sophisticated natural language processing
-- Create a web interface for managing messages and calls
-- Add support for MMS (multimedia messages)
-- Implement conversation state management
+### Debug Mode
+Set `FLASK_ENV=development` in your `.env` file for detailed error messages.
 
-## License
+## 🚀 Deployment
+
+### GitHub Codespaces
+- Automatically configured for development
+- Port 5000 is exposed and can be made public
+- Perfect for testing and development
+
+### Production Deployment
+For production deployment, consider:
+- Using a proper database instead of in-memory storage
+- Setting up proper logging and monitoring
+- Using environment-specific configuration
+- Implementing rate limiting and security measures
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📝 License
 
 This project is open source and available under the MIT License.
+
+## 🎉 Have Fun!
+
+Enjoy exploring Portland through this interactive scavenger hunt! The game is designed to be educational and fun, showcasing some of Portland's most beloved locations. 
+
+Send `READY` to get started! 🌲
