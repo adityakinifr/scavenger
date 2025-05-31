@@ -15,7 +15,13 @@ class ScavengerHuntGame:
         api_key = os.environ.get('OPENAI_API_KEY')
         if api_key and not api_key.startswith('your_'):
             try:
-                self.openai_client = openai.OpenAI(api_key=api_key)
+                # Try different initialization methods for compatibility
+                try:
+                    self.openai_client = openai.OpenAI(api_key=api_key)
+                except TypeError:
+                    # Fallback for older versions or different initialization
+                    openai.api_key = api_key
+                    self.openai_client = openai
                 self.has_openai = True
             except Exception as e:
                 print(f"Warning: OpenAI initialization failed: {e}")
@@ -201,14 +207,36 @@ The user's answer should be considered correct if it:
 Respond with only "CORRECT" or "INCORRECT".
 """
             
-            response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=10,
-                temperature=0
-            )
+            # Try new client style first, then fall back to legacy
+            try:
+                if hasattr(self.openai_client, 'chat') and hasattr(self.openai_client.chat, 'completions'):
+                    # New client style (OpenAI v1.0+)
+                    response = self.openai_client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=10,
+                        temperature=0
+                    )
+                    result = response.choices[0].message.content.strip().upper()
+                else:
+                    # Legacy style (OpenAI v0.x)
+                    response = openai.ChatCompletion.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=10,
+                        temperature=0
+                    )
+                    result = response.choices[0].message.content.strip().upper()
+            except AttributeError:
+                # Another fallback attempt
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=10,
+                    temperature=0
+                )
+                result = response.choices[0].message.content.strip().upper()
             
-            result = response.choices[0].message.content.strip().upper()
             return result == "CORRECT"
             
         except Exception as e:
