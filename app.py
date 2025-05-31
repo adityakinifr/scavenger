@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
-from twilio.twiml import MessagingResponse, VoiceResponse
+from twilio.twiml.messaging_response import MessagingResponse
+from twilio.twiml.voice_response import VoiceResponse
 from twilio.rest import Client
 import os
 from datetime import datetime

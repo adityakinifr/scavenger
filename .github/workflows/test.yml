@@ -31,6 +31,22 @@ jobs:
         sed -i 's/your_auth_token_here/test_token/g' .env
         sed -i 's/your_twilio_phone_number_here/+1234567890/g' .env
     
+    - name: Test Twilio imports
+      run: |
+        python -c "
+        from twilio.twiml.messaging_response import MessagingResponse
+        from twilio.twiml.voice_response import VoiceResponse
+        from twilio.rest import Client
+        print('✅ Twilio imports successful')
+        
+        # Test TwiML creation
+        msg_resp = MessagingResponse()
+        msg_resp.message('Test')
+        voice_resp = VoiceResponse()
+        voice_resp.say('Test')
+        print('✅ TwiML creation works')
+        "
+    
     - name: Test app imports and basic functionality
       run: |
         python -c "
