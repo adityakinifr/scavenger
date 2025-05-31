@@ -19,7 +19,7 @@ def check_dependencies():
         import flask
         import twilio
         import openai
-        import python_dotenv
+        from dotenv import load_dotenv
         print("✅ All required dependencies are installed")
         return True
     except ImportError as e:
