@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>My Visited States</title>
+<style>
+  body {margin: 0; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center;}
+  svg   {max-width: 960px; width: 100%; height: auto;}
+  .state      {fill:#eee; stroke:#fff; cursor:pointer;}
+  .state.visited {fill:steelblue;}
+  #counter    {margin:0.5rem 0 1rem; font-size:1.1rem;}
+</style>
+</head>
+<body>
+
+<svg id="map" viewBox="0 0 960 600" preserveAspectRatio="xMidYMid meet"></svg>
+<p id="counter">Visited states: 0</p>
+
+<!-- D3 & TopoJSON -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+
+<script>
+(async function () {
+  const svg  = d3.select("#map");
+  const path = d3.geoPath();
+
+  // keeps the state FIPS codes you’ve clicked
+  const visited = new Set();
+
+  // lightweight TopoJSON of U.S. states (50 + D.C.)
+  const us = await d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json");
+  const states = topojson.feature(us, us.objects.states).features;
+
+  // draw states
+  svg.append("g")
+     .selectAll("path")
+     .data(states)
+     .join("path")
+       .attr("d", path)
+       .attr("class", "state")
+       .on("click", function (event, d) {
+          const id = d.id;         // numeric FIPS code
+          const el = d3.select(this);
+
+          // toggle set & class
+          if (visited.has(id)) {
+              visited.delete(id);
+              el.classed("visited", false);
+          } else {
+              visited.add(id);
+              el.classed("visited", true);
+          }
+
+          // update counter
+          d3.select("#counter")
+            .text(`Visited states: ${visited.size}`);
+       });
+})();
+</script>
+
+</body>
+</html>
